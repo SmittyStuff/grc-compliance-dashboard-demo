@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GRC Compliance Dashboard — Demonstration</title>
+  <meta name="description" content="Illustrative executive GRC compliance dashboard aggregating six program modules (ISO 27001, Enterprise Risk, Vendor/TPRM, Internal Audit, Incident Response, Data Protection) into a single board-ready view, with a dashboard-as-code data pipeline in Python (pandas), SQL, Bash, and PowerShell. A reusable work-sample template." />
+  <style>
+    :root{--bg:#0a0f1c;--bg-2:#0e1626;--panel:rgba(255,255,255,0.04);--panel-border:rgba(120,160,220,0.16);--text:#eaf0fb;--text-soft:#a9b7cf;--text-mute:#6f7f9c;--accent:#58a6ff;--accent-2:#7cc4ff;--accent-deep:#1d4ed8;--green:#4ade80;--amber:#fbbf24;--orange:#fb923c;--red:#f87171;--radius:14px;--max:1080px;--mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans',Helvetica,Arial,sans-serif}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+    a{color:var(--accent);text-decoration:none}a:hover{color:var(--accent-2)}
+    code,pre{font-family:var(--mono)}
+    .topbar{position:sticky;top:0;z-index:30;background:rgba(10,15,28,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--panel-border)}
+    .topbar-inner{max-width:var(--max);margin:0 auto;height:60px;padding:0 24px;display:flex;align-items:center;gap:14px}
+    .brand{display:flex;align-items:center;gap:11px;font-weight:600}
+    .brand-badge{width:34px;height:34px;border-radius:8px;background:#fff;color:#16202f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;letter-spacing:-1px}
+    .brand small{display:block;font-size:.66rem;color:var(--text-mute);font-weight:500;letter-spacing:.05em}
+    .btn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:9px 15px;border-radius:9px;font-size:.85rem;font-weight:600;border:1px solid var(--panel-border);color:var(--text-soft)}
+    .btn:hover{color:#fff;background:rgba(255,255,255,.06)}
+    .wrap{max-width:var(--max);margin:0 auto;padding:clamp(32px,6vw,64px) 24px 80px}
+    .page-head{margin-bottom:40px}
+    .eyebrow{text-transform:uppercase;letter-spacing:.2em;font-size:.72rem;font-weight:600;color:var(--accent)}
+    .page-head h1{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:700;letter-spacing:-.02em;margin:12px 0 10px}
+    .page-head p.sub{color:var(--text-soft);font-size:1.05rem}
+    .divider{width:52px;height:3px;background:var(--accent);border-radius:2px;margin-top:18px}
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:44px}
+    .stat{padding:22px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--panel-border);text-align:center}
+    .stat .num{display:block;font-size:2rem;font-weight:700;line-height:1;margin-bottom:8px}
+    .stat .num.accent{background:linear-gradient(120deg,var(--accent-2),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+    .stat .lbl{font-size:.82rem;color:var(--text-soft)}
+    .block{margin-bottom:52px}
+    .block-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+    .block-head svg{color:var(--accent)}.block-head h2{font-size:1.3rem;font-weight:700}
+    .intro{color:var(--text-soft);font-size:.92rem;margin-bottom:20px;max-width:840px}
+    .card{padding:20px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--panel-border)}
+    /* KPI / KRI grid */
+    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .kpi-card{padding:18px;border-radius:12px;background:var(--panel);border:1px solid var(--panel-border);border-left:3px solid var(--text-mute)}
+    .kpi-card.on-track{border-left-color:var(--green)}
+    .kpi-card.at-risk{border-left-color:var(--amber)}
+    .kpi-card.off-track{border-left-color:var(--red)}
+    .kpi-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+    .kpi-value{font-size:1.55rem;font-weight:700;line-height:1}
+    .kpi-status{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:999px;white-space:nowrap}
+    .kpi-status.on-track{background:rgba(74,222,128,.14);color:#86efac;border:1px solid rgba(74,222,128,.3)}
+    .kpi-status.at-risk{background:rgba(251,191,36,.14);color:var(--amber);border:1px solid rgba(251,191,36,.3)}
+    .kpi-status.off-track{background:rgba(248,113,113,.14);color:#fca5a5;border:1px solid rgba(248,113,113,.3)}
+    .kpi-label{font-size:.92rem;font-weight:650;margin:10px 0 3px}
+    .kpi-target{font-family:var(--mono);font-size:.74rem;color:var(--text-mute)}
+    .kpi-desc{font-size:.78rem;color:var(--text-soft);margin-top:8px}
+    /* module table */
+    .filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .filters .fl{font-size:.8rem;color:var(--text-mute)}
+    .fbtn{padding:6px 12px;border-radius:8px;font-size:.8rem;cursor:pointer;color:var(--text-soft);background:transparent;border:1px solid var(--panel-border)}
+    .fbtn:hover{color:var(--text);background:rgba(255,255,255,.05)}.fbtn.active{color:#fff;background:rgba(88,166,255,.18);border-color:var(--accent)}
+    .table-wrap{overflow-x:auto;border:1px solid var(--panel-border);border-radius:var(--radius)}
+    table{width:100%;border-collapse:collapse;min-width:720px}
+    thead th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mute);padding:11px 12px;border-bottom:1px solid var(--panel-border);background:rgba(255,255,255,.02)}
+    tbody td{padding:11px 12px;font-size:.84rem;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+    .mname{font-weight:600;color:var(--text)}
+    .mframe{font-family:var(--mono);font-size:.72rem;color:var(--accent-2);background:rgba(88,166,255,.1);padding:2px 8px;border-radius:6px;white-space:nowrap}
+    .mbar-cell{display:flex;align-items:center;gap:10px}
+    .mbar{display:flex;height:8px;width:120px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.06);flex-shrink:0}
+    .mbar-fill{height:100%}
+    .mpct{font-family:var(--mono);font-weight:700;font-size:.82rem}
+    .mstat{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;font-size:.7rem;font-weight:600}
+    .mstat.on-track{background:rgba(74,222,128,.12);color:#86efac;border:1px solid rgba(74,222,128,.3)}
+    .mstat.at-risk{background:rgba(251,191,36,.12);color:var(--amber);border:1px solid rgba(251,191,36,.3)}
+    .mstat.off-track{background:rgba(248,113,113,.12);color:#fca5a5;border:1px solid rgba(248,113,113,.3)}
+    .row-main{cursor:pointer;transition:background .15s}.row-main:hover{background:rgba(88,166,255,.05)}
+    .exp-cell{text-align:center;color:var(--text-mute);width:32px}
+    .detail-row td{background:rgba(0,0,0,.2)}
+    .exp{padding:8px 4px;display:grid;gap:16px}
+    .exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    .exp b{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin-bottom:6px}
+    .exp p{font-size:.85rem;color:var(--text-soft)}
+    .exp-metrics{display:flex;gap:10px;flex-wrap:wrap}
+    .em{padding:8px 14px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid var(--panel-border);text-align:center;min-width:88px}
+    .em .emn{display:block;font-family:var(--mono);font-weight:700;font-size:1.1rem}
+    .em .eml{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-mute)}
+    .note{font-size:.8rem;color:var(--text-mute);margin-top:12px;text-align:center}
+    /* charts / legend */
+    .chartbox{border:1px solid var(--panel-border);border-radius:var(--radius);background:var(--bg-2);padding:18px;overflow-x:auto}
+    .chartbox svg{display:block;min-width:520px;max-width:100%;height:auto}
+    .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+    .legend-item{display:flex;align-items:center;gap:7px;font-size:.8rem;color:var(--text-soft)}
+    .legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+    .method{margin-top:16px;padding:14px 16px;border-radius:10px;background:rgba(88,166,255,.05);border:1px solid var(--panel-border);font-size:.84rem;color:var(--text-soft)}
+    .method strong{color:var(--text)}
+    /* remediation */
+    .rem-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+    .rem-card{padding:16px 18px;border-radius:12px;background:var(--panel);border:1px solid var(--panel-border)}
+    .rem-card.overdue{border-color:rgba(248,113,113,.42);background:rgba(248,113,113,.04)}
+    .rem-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px}
+    .rem-id{font-family:var(--mono);font-size:.74rem;color:var(--accent)}
+    .rem-status{font-size:.66rem;font-weight:700;padding:3px 9px;border-radius:999px}
+    .rem-status.in-progress{background:rgba(88,166,255,.14);color:var(--accent-2)}
+    .rem-status.not-started{background:rgba(255,255,255,.06);color:var(--text-mute)}
+    .rem-status.overdue{background:rgba(248,113,113,.14);color:#fca5a5}
+    .rem-title{font-size:.92rem;font-weight:650;margin-bottom:11px}
+    .rem-bar-wrap{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+    .rem-bar{flex:1;height:7px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden}
+    .rem-fill{height:100%}
+    .rem-pct{font-family:var(--mono);font-size:.74rem;color:var(--text-mute)}
+    .rem-meta{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+    .rem-meta span{font-size:.76rem;color:var(--text-mute);display:inline-flex;align-items:center;gap:5px}
+    .rem-sev{font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:6px;margin-left:auto}
+    .rem-sev.major{background:rgba(248,113,113,.14);color:#fca5a5}
+    .rem-sev.minor{background:rgba(251,191,36,.14);color:var(--amber)}
+    /* code tabs */
+    .tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+    .tab{padding:7px 14px;border-radius:8px;font-size:.82rem;font-weight:500;cursor:pointer;color:var(--text-soft);background:transparent;border:1px solid var(--panel-border)}
+    .tab:hover{color:var(--text);background:rgba(255,255,255,.05)}.tab.active{color:#fff;background:rgba(88,166,255,.18);border-color:var(--accent)}
+    .panel{border:1px solid var(--panel-border);border-radius:var(--radius);overflow:hidden;background:var(--bg-2)}
+    .panel-meta{display:flex;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--panel-border);background:rgba(255,255,255,.02);flex-wrap:wrap}
+    .panel-tag{font-family:var(--mono);font-size:.72rem;color:var(--accent);background:rgba(88,166,255,.1);padding:2px 8px;border-radius:6px}
+    .panel-desc{font-size:.82rem;color:var(--text-soft)}
+    pre.code{padding:16px;overflow-x:auto;font-size:.8rem;line-height:1.6;color:#cdd9ec}
+    pre.code .cmt{color:var(--text-mute)}
+    /* diagram */
+    .diagram{border:1px solid var(--panel-border);border-radius:var(--radius);background:var(--bg-2);padding:18px;overflow-x:auto}
+    .diagram svg{display:block;min-width:720px;max-width:100%;height:auto}
+    /* files / csv */
+    .files{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+    .file-card{border:1px solid var(--panel-border);border-radius:var(--radius);overflow:hidden;background:var(--bg-2)}
+    .file-head{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--panel-border);flex-wrap:wrap}
+    .file-head h5{font-size:.9rem;font-weight:650}
+    .file-head svg{color:var(--accent);flex-shrink:0}
+    .file-name{font-family:var(--mono);font-size:.68rem;color:var(--text-mute);margin-left:auto}
+    .file-card .table-wrap{border:none;border-radius:0}
+    .file-card table{min-width:0}
+    .file-card tbody td{font-family:var(--mono);font-size:.72rem;padding:8px 12px}
+    .csv-ok{color:#86efac;font-weight:700}.csv-part{color:var(--amber);font-weight:700}.csv-miss{color:#fca5a5;font-weight:700}
+    /* outcomes */
+    .out-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .out{padding:20px;border-radius:var(--radius);background:var(--panel);border:1px solid var(--panel-border)}
+    .out h4{font-size:.95rem;font-weight:650;margin-bottom:8px}.out p{font-size:.84rem;color:var(--text-soft)}
+    .foot{margin-top:40px;padding:20px;border:1px dashed var(--panel-border);border-radius:10px;font-size:.82rem;color:var(--text-mute)}
+    .foot a{color:var(--accent)}
+    @media (max-width:860px){.stats,.kpi-grid,.exp-grid,.rem-grid,.out-cards,.files{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="topbar-inner">
+    <div class="brand"><span class="brand-badge">SS</span><span>Steven Smith<small>GRC Compliance Dashboard · Demonstration</small></span></div>
+    <a class="btn" id="repo-link" href="#" target="_blank" rel="noopener noreferrer">View on GitHub</a>
+  </div></header>
+
+  <main class="wrap">
+    <div class="page-head">
+      <span class="eyebrow">Work-sample template</span>
+      <h1>GRC Compliance Dashboard</h1>
+      <p class="sub">Executive posture across six program modules, built from a dashboard-as-code data pipeline</p>
+      <div class="divider"></div>
+    </div>
+    <div class="stats" id="stats"></div>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><h2>Key Performance &amp; Risk Indicators</h2></div>
+      <p class="intro">Six board-level KPIs / KRIs, each with a target, current value, and a red-amber-green status derived automatically in the aggregation pipeline. Direction (higher- or lower-is-better) determines how each metric is scored against its target.</p>
+      <div class="kpi-grid" id="kpis"></div>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="12" y="6" width="3" height="12"/><rect x="17" y="13" width="3" height="5"/></svg><h2>Module Compliance Breakdown</h2></div>
+      <p class="intro">Per-module control counts and compliance percentage. Compliance is scored on fully-implemented controls only; the inline bar shows compliant (green) versus partial (amber) versus missing (red).</p>
+      <div class="filters" id="filters"></div>
+      <div class="table-wrap"><table><thead><tr><th>Module</th><th>Framework</th><th>Controls</th><th>Compliance</th><th>Status</th><th></th></tr></thead><tbody id="mod-body"></tbody></table></div>
+      <p class="note">Click any row to expand the compliant / partial / missing breakdown, owner, and last review.</p>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg><h2>Risk Trend — Inherent to Residual</h2></div>
+      <p class="intro">Aggregated inherent and residual risk scores from the Enterprise Risk Register over the last six months, showing the effect of mitigation activity across the program.</p>
+      <div class="chartbox" id="risk-chart"></div>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--orange)"></span> Inherent risk (before controls)</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--accent)"></span> Residual risk (after controls)</span>
+      </div>
+      <p class="method" id="risk-method"></p>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><h2>Remediation Tracker</h2></div>
+      <p class="intro">Open corrective-action plans (CAPs) drawn from audit findings and risk treatments, each with an owner, due date, progress, and overdue flag. Overdue items feed directly into the KPI panel.</p>
+      <div class="rem-grid" id="rem-grid"></div>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg><h2>Data Pipeline — Dashboard as Code</h2></div>
+      <p class="intro">This dashboard is not hand-maintained. Each module exports a control-status matrix; a scheduled pipeline normalises those exports, computes every number on this page, and writes a single <code style="color:var(--accent-2)">dashboard.json</code> the front-end reads. The same rollup is expressed in <strong>Python (pandas)</strong>, queried in <strong>SQL</strong>, orchestrated in <strong>Bash</strong>, and fed from Microsoft 365 via <strong>PowerShell</strong>.</p>
+      <div class="tabs" id="code-tabs"></div><div class="panel" id="code-panel"></div>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><h2>Data Flow</h2></div>
+      <p class="intro">Six module sources feed one aggregator, which emits a single <code style="color:var(--accent-2)">dashboard.json</code> consumed by both the executive dashboard and the board report.</p>
+      <div class="diagram" id="diagram"></div>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h2>Spreadsheet Artifacts</h2></div>
+      <p class="intro">The pipeline's inputs and outputs are plain CSV so they stay auditable and diff-able. Below are the KPI tracker and the control-status matrix that drive the numbers above (headers plus sample rows).</p>
+      <div class="files" id="files"></div>
+    </section>
+
+    <section class="block"><div class="block-head"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><h2>Key Learning Outcomes</h2></div>
+      <div class="out-cards" id="outcomes"></div>
+    </section>
+
+    <div class="foot" id="foot"></div>
+  </main>
+
+  <script>
+    const REPO_URL="https://github.com/SmittyStuff/grc-compliance-dashboard-demo";
+    document.getElementById('repo-link').href=REPO_URL;
+    const esc=s=>String(s).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+    const codeHtml=s=>esc(s).replace(/(#[^\n]*|--[^\n]*)/g,'<span class="cmt">$1</span>');
+
+    // ── Aggregated data (would be produced by aggregate_dashboard.py -> dashboard.json) ──
+    const modules=[
+      {id:"iso27001",name:"ISO 27001 Control Program",framework:"ISO 27001:2022 Annex A",total:14,compliant:12,partial:2,missing:0,owner:"CISO",review:"Jul 10, 2026",note:"Annex A controls largely operating; two cryptographic-control gaps in partial state pending key-management rollout."},
+      {id:"risk",name:"Enterprise Risk Register",framework:"NIST CSF / ISO 27005",total:8,compliant:7,partial:1,missing:0,owner:"Risk Owner",review:"Jul 18, 2026",note:"Treatment plans current; one supply-chain risk awaiting residual re-scoring after vendor remediation."},
+      {id:"vendor",name:"Vendor / TPRM",framework:"SOC 2 CC9 / ISO 27036",total:8,compliant:5,partial:2,missing:1,owner:"Vendor Manager",review:"Jun 30, 2026",note:"Assessment cadence behind target; one critical vendor has no current security review on file."},
+      {id:"audit",name:"Internal Audit Findings",framework:"ISO 27001 Clause 9.2",total:10,compliant:6,partial:3,missing:1,owner:"Internal Audit",review:"Jun 22, 2026",note:"Lowest-scoring module — drives the overall posture down; access-review and BCP findings remain open."},
+      {id:"ir",name:"Incident Response",framework:"NIST CSF RS / ISO 27035",total:8,compliant:7,partial:1,missing:0,owner:"Dir. of Security",review:"Jul 05, 2026",note:"IR plan documented and staffed; tabletop exercise scheduled to close the remaining partial control."},
+      {id:"privacy",name:"Data-Protection / Privacy",framework:"ISO 27701 / GDPR",total:8,compliant:7,partial:1,missing:0,owner:"Privacy Officer",review:"Jul 12, 2026",note:"RoPA and DSAR process operating; DPIA for the new data platform in progress."},
+    ];
+
+    const kpis=[
+      {label:"Control Coverage",value:"79%",target:"≥ 85%",status:"at-risk",desc:"Controls fully implemented across all six program modules."},
+      {label:"Overdue Remediation",value:"2",target:"0 items",status:"off-track",desc:"Open corrective-action plans past their due date."},
+      {label:"Mean Time-to-Remediate",value:"31 days",target:"≤ 30 days",status:"at-risk",desc:"Average days to close a finding, trailing 90 days."},
+      {label:"Vendor Assessments Current",value:"70%",target:"100%",status:"off-track",desc:"Critical vendors with a security assessment in the last 12 months."},
+      {label:"High / Critical Risks Open",value:"4",target:"≤ 3",status:"at-risk",desc:"Residual-risk-scored register entries rated High or Critical."},
+      {label:"Audit Findings Closed",value:"92%",target:"≥ 90%",status:"on-track",desc:"Cumulative internal-audit findings verified closed."},
+    ];
+
+    const riskTrend=[
+      {month:"Feb",inherent:82,residual:52},
+      {month:"Mar",inherent:80,residual:48},
+      {month:"Apr",inherent:78,residual:45},
+      {month:"May",inherent:77,residual:43},
+      {month:"Jun",inherent:75,residual:41},
+      {month:"Jul",inherent:74,residual:40},
+    ];
+
+    const remediation=[
+      {id:"CAP-01",title:"Implement Quarterly Access Reviews",owner:"IT Manager",due:"Aug 30, 2026",status:"In Progress",progress:35,sev:"Major",overdue:false},
+      {id:"CAP-02",title:"Rebuild Vendor Risk Management Program",owner:"Compliance Officer",due:"Jul 15, 2026",status:"Overdue",progress:20,sev:"Major",overdue:true},
+      {id:"CAP-03",title:"Develop Business Continuity Plan & BIA",owner:"VP of Engineering",due:"Sep 15, 2026",status:"Not Started",progress:0,sev:"Major",overdue:false},
+      {id:"CAP-04",title:"Close ISO 27001 Annex A.8 Crypto Gaps",owner:"Security Engineer",due:"Aug 22, 2026",status:"In Progress",progress:55,sev:"Minor",overdue:false},
+      {id:"CAP-05",title:"Conduct IR Plan Tabletop Exercise",owner:"Dir. of Security",due:"Aug 10, 2026",status:"In Progress",progress:40,sev:"Minor",overdue:false},
+      {id:"CAP-06",title:"Establish Backup Restoration Testing",owner:"Database Admin",due:"Aug 05, 2026",status:"Not Started",progress:0,sev:"Minor",overdue:false},
+      {id:"CAP-07",title:"Complete DPIA for New Data Platform",owner:"Privacy Officer",due:"Sep 01, 2026",status:"In Progress",progress:30,sev:"Minor",overdue:false},
+      {id:"CAP-08",title:"Formalize Data Classification & Ownership",owner:"Compliance Officer",due:"Jul 10, 2026",status:"Overdue",progress:10,sev:"Minor",overdue:true},
+    ];
+
+    const code=[
+      {key:"pandas",title:"Python (pandas)",lang:"python",desc:"Aggregator: reads each module's control-status export, computes compliance %, KPI rollups, and inherent-to-residual reduction, then writes dashboard.json.",code:`#!/usr/bin/env python3
+"""Aggregate the six GRC program modules into a single dashboard.json.
+
+Each module drops a control-status CSV into ./inputs. This script normalises
+them, computes per-module compliance %, rolls up the KPIs/KRIs, derives the
+inherent -> residual risk reduction, and emits one board-ready dashboard.json.
+"""
+import json, datetime
+import pandas as pd
+
+INPUTS = "inputs"
+MODULES = {
+    "iso27001": "ISO 27001 Control Program",
+    "risk":     "Enterprise Risk Register",
+    "vendor":   "Vendor / TPRM",
+    "audit":    "Internal Audit Findings",
+    "ir":       "Incident Response",
+    "privacy":  "Data-Protection / Privacy",
+}
+
+def module_compliance(key):
+    # control-status matrix: one row per control, status in {compliant,partial,missing}
+    df = pd.read_csv(f"{INPUTS}/{key}_controls.csv")
+    df["status"] = df["status"].str.strip().str.lower()
+    n = df["status"].value_counts()
+    compliant, partial, missing = (int(n.get(s, 0)) for s in ("compliant", "partial", "missing"))
+    total = len(df)
+    score = round(100 * compliant / total) if total else 0   # fully-implemented only
+    return dict(module=MODULES[key], total=total, compliant=compliant,
+                partial=partial, missing=missing, score=score)
+
+mods = [module_compliance(k) for k in MODULES]
+total_controls  = sum(m["total"] for m in mods)
+total_compliant = sum(m["compliant"] for m in mods)
+overall = round(100 * total_compliant / total_controls)
+
+# Inherent -> residual risk reduction from the register's latest snapshot
+risk = pd.read_csv(f"{INPUTS}/risk_register.csv")
+inherent, residual = risk["inherent_score"].mean(), risk["residual_score"].mean()
+reduction = round(100 * (inherent - residual) / inherent)
+
+# KPI rollups from the remediation + register tables
+cap = pd.read_csv(f"{INPUTS}/remediation.csv", parse_dates=["due_date"])
+today   = pd.Timestamp(datetime.date.today())
+overdue = int(((cap["status"] != "Complete") & (cap["due_date"] < today)).sum())
+mttr    = round(cap.loc[cap["status"] == "Complete", "days_to_close"].mean())
+high_open = int((risk["residual_score"] >= 12).sum())
+
+def rag(current, target, higher_better):
+    ok  = current >= target if higher_better else current <= target
+    near = current >= 0.9 * target if higher_better else current <= 1.1 * target
+    return "on-track" if ok else "at-risk" if near else "off-track"
+
+kpis = [
+    {"name": "Control Coverage",      "value": overall,  "target": 85,  "status": rag(overall, 85, True)},
+    {"name": "Overdue Remediation",   "value": overdue,  "target": 0,   "status": "off-track" if overdue else "on-track"},
+    {"name": "Mean Time-to-Remediate","value": mttr,     "target": 30,  "status": rag(mttr, 30, False)},
+    {"name": "High/Critical Risks",   "value": high_open,"target": 3,   "status": rag(high_open, 3, False)},
+]
+
+dashboard = {
+    "generated":  datetime.datetime.utcnow().isoformat() + "Z",
+    "overall_compliance": overall,
+    "risk_reduction_pct": reduction,
+    "modules": mods,
+    "kpis":    kpis,
+}
+json.dump(dashboard, open("dashboard.json", "w"), indent=2)
+print(f"{overall}% overall compliance | {reduction}% residual-risk reduction | {overdue} overdue")`},
+      {key:"sql",title:"SQL",lang:"sql",desc:"Warehouse queries behind the dashboard: compliance by module, overdue remediation, KPI status vs target, and the month-over-month risk trend.",code:`-- 1) Compliance score by module (fully-implemented controls only)
+SELECT m.module_id,
+       m.module_name,
+       COUNT(*)                                                  AS total_controls,
+       SUM(CASE WHEN c.status = 'compliant' THEN 1 ELSE 0 END)   AS compliant,
+       ROUND(100.0 * SUM(CASE WHEN c.status = 'compliant' THEN 1 ELSE 0 END)
+                     / COUNT(*), 0)                              AS compliance_pct
+FROM   control_status c
+JOIN   modules m ON m.module_id = c.module_id
+GROUP  BY m.module_id, m.module_name
+ORDER  BY compliance_pct ASC;          -- worst modules first
+
+-- 2) Overdue remediation (open CAPs past due date)
+SELECT cap_id, title, owner, due_date,
+       CURRENT_DATE - due_date AS days_overdue
+FROM   remediation
+WHERE  status <> 'Complete'
+  AND  due_date < CURRENT_DATE
+ORDER  BY days_overdue DESC;
+
+-- 3) KPI status vs target (red-amber-green traffic light)
+SELECT kpi_name, current_value, target_value, direction,
+       CASE
+         WHEN (direction = 'higher' AND current_value >= target_value)
+           OR (direction = 'lower'  AND current_value <= target_value) THEN 'on-track'
+         WHEN (direction = 'higher' AND current_value >= 0.9 * target_value)
+           OR (direction = 'lower'  AND current_value <= 1.1 * target_value) THEN 'at-risk'
+         ELSE 'off-track'
+       END AS status
+FROM   kpi_snapshot
+WHERE  as_of = (SELECT MAX(as_of) FROM kpi_snapshot);
+
+-- 4) Month-over-month inherent vs residual risk trend
+SELECT DATE_TRUNC('month', snapshot_date)            AS month,
+       ROUND(AVG(inherent_score), 0)                 AS inherent,
+       ROUND(AVG(residual_score), 0)                 AS residual,
+       ROUND(100.0 * (AVG(inherent_score) - AVG(residual_score))
+                     / AVG(inherent_score), 0)       AS reduction_pct
+FROM   risk_snapshot
+WHERE  snapshot_date >= CURRENT_DATE - INTERVAL '6 months'
+GROUP  BY DATE_TRUNC('month', snapshot_date)
+ORDER  BY month;`},
+      {key:"bash",title:"Bash",lang:"bash",desc:"Scheduled orchestrator: refreshes each module's inputs, runs the pandas aggregator, and writes a timestamped, immutable snapshot for trend history.",code:`#!/usr/bin/env bash
+# Refresh module inputs and rebuild the executive dashboard on a schedule.
+# Cron:  0 6 * * 1   /opt/grc/refresh_dashboard.sh   # every Monday 06:00
+set -euo pipefail
+
+ROOT="/opt/grc"; IN="$ROOT/inputs"; SNAP="$ROOT/snapshots"
+STAMP="$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$IN" "$SNAP"
+
+# 1) Pull the latest control / evidence exports from each source system.
+#    PowerShell handles the Microsoft 365 sources (see the PowerShell tab).
+pwsh    "$ROOT/pull_sharepoint_controls.ps1" -OutDir "$IN"   # ISO 27001 + privacy
+python3 "$ROOT/pull_risk_register.py"        --out  "$IN"   # risk + vendor
+python3 "$ROOT/pull_audit_findings.py"       --out  "$IN"   # internal audit + IR
+
+# 2) Aggregate every module into one dashboard.json.
+python3 "$ROOT/aggregate_dashboard.py"
+
+# 3) Keep an immutable, timestamped snapshot for trend history + audit trail.
+cp "$ROOT/dashboard.json" "$SNAP/dashboard_\${STAMP}.json"
+ln -sf "$SNAP/dashboard_\${STAMP}.json" "$ROOT/dashboard.latest.json"
+
+echo "[$(date -Is)] dashboard refreshed -> $SNAP/dashboard_\${STAMP}.json"`},
+      {key:"powershell",title:"PowerShell",lang:"powershell",desc:"Pulls control + evidence status from a SharePoint list via the Microsoft Graph PowerShell SDK and writes a module control-status CSV.",code:`# Pull ISO 27001 control + evidence status from a SharePoint list into a module CSV.
+# Uses the Microsoft Graph PowerShell SDK (app-only / certificate auth).
+param(
+    [string]$OutDir = "inputs",
+    [string]$SiteId = "contoso.sharepoint.com,<site-guid>,<web-guid>",
+    [string]$ListId = "Controls"
+)
+
+Connect-MgGraph -Scopes "Sites.Read.All" -NoWelcome
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+
+# Pull every list item (control) with its status + evidence fields expanded.
+$items = Get-MgSiteListItem -SiteId $SiteId -ListId $ListId -ExpandProperty "fields" -All
+
+$items | ForEach-Object {
+    $f = $_.Fields.AdditionalProperties
+    [pscustomobject]@{
+        control_id     = $f["ControlId"]
+        module_id      = "iso27001"
+        control_name   = $f["Title"]
+        framework_ref  = $f["AnnexRef"]
+        status         = ([string]$f["Status"]).ToLower()   # compliant | partial | missing
+        evidence_count = [int]($f["EvidenceCount"])
+        owner          = $f["Owner"]
+        last_reviewed  = $f["LastReviewed"]
+    }
+} | Export-Csv -Path (Join-Path $OutDir "iso27001_controls.csv") -NoTypeInformation
+
+Disconnect-MgGraph | Out-Null
+Write-Host "Wrote $($items.Count) controls to $OutDir/iso27001_controls.csv"`},
+    ];
+
+    const kpiCsv={
+      name:"kpi_tracker.csv",
+      head:["kpi_id","kpi_name","current","target","direction","status","owner"],
+      rows:[
+        ["KPI-01","Control Coverage","79%",">=85%","higher","at-risk","CISO"],
+        ["KPI-02","Overdue Remediation","2","0","lower","off-track","Compliance Officer"],
+        ["KPI-03","Mean Time-to-Remediate","31d","<=30d","lower","at-risk","GRC Lead"],
+        ["KPI-04","Vendor Assessments Current","70%","100%","higher","off-track","Vendor Manager"],
+        ["KPI-05","High/Critical Risks Open","4","<=3","lower","at-risk","Risk Owner"],
+        ["KPI-06","Audit Findings Closed","92%",">=90%","higher","on-track","Internal Audit"],
+      ],
+    };
+    const ctrlCsv={
+      name:"control_status.csv",
+      head:["control_id","module_id","control_name","framework_ref","status","evidence"],
+      rows:[
+        ["CTRL-ISO-05","iso27001","Access Control Policy","A.5.15",["compliant","ok"],"4"],
+        ["CTRL-ISO-12","iso27001","Cryptographic Controls","A.8.24",["partial","part"],"2"],
+        ["CTRL-VEN-03","vendor","Vendor Security Assessment","CC9.2",["missing","miss"],"0"],
+        ["CTRL-AUD-07","audit","Quarterly Access Review","Clause 9.2",["partial","part"],"1"],
+        ["CTRL-IR-02","ir","Incident Response Plan","A.5.24",["compliant","ok"],"3"],
+        ["CTRL-PRV-04","privacy","Records of Processing (RoPA)","A.7.2.8",["compliant","ok"],"5"],
+      ],
+    };
+
+    const outcomes=[
+      ["Executive GRC Reporting","Translating control, risk, audit, vendor, incident, and privacy data into a single board-ready posture view that non-technical stakeholders can act on."],
+      ["Dashboard as Code","Automating aggregation with pandas so the dashboard rebuilds from source exports on a schedule — no manual copy-paste, fully reproducible, and version-controlled."],
+      ["Cross-Framework Normalization","Mapping ISO 27001, NIST CSF, ISO 27701, and SOC 2 control data into one comparable model so modules can be scored on the same scale."],
+      ["KPI / KRI Design","Defining measurable indicators with targets, direction (higher/lower-is-better), and red-amber-green thresholds that drive attention to what is off-track."],
+      ["Risk Quantification & Trending","Computing inherent-to-residual reduction and visualising month-over-month risk trend to evidence that mitigation activity is actually working."],
+      ["SQL for Compliance Analytics","Querying compliance by module, overdue remediation, KPI status, and risk trend directly from a warehouse for repeatable, auditable reporting."],
+      ["Microsoft 365 Integration","Pulling control and evidence status from SharePoint / Microsoft Graph with PowerShell so the pipeline reads from systems teams already use."],
+      ["Remediation Governance","Tracking corrective actions from finding through closure with ownership, due dates, progress, and overdue alerting that rolls up into the KPIs."],
+    ];
+
+    // ── helpers ──
+    const barColor=s=>s>=85?'var(--green)':s>=70?'var(--amber)':'var(--red)';
+    const statusOf=s=>s>=85?'on-track':s>=70?'at-risk':'off-track';
+
+    // ── stats ──
+    const totalControls=modules.reduce((a,m)=>a+m.total,0);
+    const totalCompliant=modules.reduce((a,m)=>a+m.compliant,0);
+    const overall=Math.round(100*totalCompliant/totalControls);
+    const rt=riskTrend[riskTrend.length-1];
+    const reduction=Math.round(100*(rt.inherent-rt.residual)/rt.inherent);
+    document.getElementById('stats').innerHTML=[
+      {n:totalControls,l:'Controls Aggregated'},
+      {n:overall+'%',l:'Overall Compliance',a:true},
+      {n:modules.length,l:'Program Modules'},
+      {n:reduction+'%',l:'Residual-Risk Reduction'},
+    ].map(s=>`<div class="stat"><span class="num${s.a?' accent':''}">${s.n}</span><span class="lbl">${s.l}</span></div>`).join('');
+
+    // ── KPIs ──
+    document.getElementById('kpis').innerHTML=kpis.map(k=>`<div class="kpi-card ${k.status}">
+      <div class="kpi-top"><span class="kpi-value">${esc(k.value)}</span><span class="kpi-status ${k.status}">${k.status.replace('-',' ')}</span></div>
+      <div class="kpi-label">${esc(k.label)}</div>
+      <div class="kpi-target">Target: ${esc(k.target)}</div>
+      <p class="kpi-desc">${esc(k.desc)}</p></div>`).join('');
+
+    // ── module table ──
+    let modF='all';
+    const filtersEl=document.getElementById('filters'),mb=document.getElementById('mod-body');
+    const statuses=[['all','All'],['on-track','On-track'],['at-risk','At-risk'],['off-track','Off-track']];
+    function count(v){return v==='all'?modules.length:modules.filter(m=>statusOf(m.score)===v).length;}
+    function renderFilters(){filtersEl.innerHTML=`<span class="fl">Status:</span>`+statuses.map(([v,l])=>`<button class="fbtn ${modF===v?'active':''}" data-t="${v}">${l} (${count(v)})</button>`).join('');}
+    function renderMods(){
+      const rows=modF==='all'?modules:modules.filter(m=>statusOf(m.score)===modF);
+      mb.innerHTML=rows.map(m=>{const st=statusOf(m.score),cPct=100*m.compliant/m.total,pPct=100*m.partial/m.total;return `<tr class="row-main" data-id="${m.id}">
+        <td class="mname">${esc(m.name)}</td>
+        <td><span class="mframe">${esc(m.framework)}</span></td>
+        <td>${m.compliant}/${m.total}</td>
+        <td><div class="mbar-cell"><div class="mbar"><div class="mbar-fill" style="width:${cPct}%;background:var(--green)"></div><div class="mbar-fill" style="width:${pPct}%;background:var(--amber)"></div></div><span class="mpct" style="color:${barColor(m.score)}">${m.score}%</span></div></td>
+        <td><span class="mstat ${st}">${st.replace('-',' ')}</span></td>
+        <td class="exp-cell">▾</td></tr>
+      <tr class="detail-row" data-d="${m.id}" style="display:none"><td colspan="6"><div class="exp">
+        <div class="exp-metrics">
+          <div class="em"><span class="emn" style="color:var(--green)">${m.compliant}</span><span class="eml">Compliant</span></div>
+          <div class="em"><span class="emn" style="color:var(--amber)">${m.partial}</span><span class="eml">Partial</span></div>
+          <div class="em"><span class="emn" style="color:var(--red)">${m.missing}</span><span class="eml">Missing</span></div>
+          <div class="em"><span class="emn">${m.score}%</span><span class="eml">Compliance</span></div>
+        </div>
+        <div class="exp-grid"><div><b>Owner</b><p>${esc(m.owner)}</p></div><div><b>Last Reviewed</b><p>${esc(m.review)}</p></div></div>
+        <div><b>Notes</b><p>${esc(m.note)}</p></div>
+      </div></td></tr>`;}).join('');
+    }
+    filtersEl.addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(b){modF=b.dataset.t;renderFilters();renderMods();}});
+    mb.addEventListener('click',e=>{const row=e.target.closest('.row-main');if(!row)return;const d=mb.querySelector(`[data-d="${row.dataset.id}"]`);if(d)d.style.display=d.style.display==='none'?'table-row':'none';});
+    renderFilters();renderMods();
+
+    // ── risk trend SVG (area + line, two series) ──
+    (function(){
+      const W=640,H=240,pad={l:34,r:16,t:16,b:28},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b,n=riskTrend.length;
+      const x=i=>pad.l+(n===1?0:i*iw/(n-1)),y=v=>pad.t+ih-(v/100)*ih;
+      const line=k=>riskTrend.map((d,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join(' ');
+      const area=k=>`${line(k)} L${x(n-1).toFixed(1)},${y(0).toFixed(1)} L${x(0).toFixed(1)},${y(0).toFixed(1)} Z`;
+      const grid=[0,25,50,75,100].map(v=>`<line x1="${pad.l}" y1="${y(v).toFixed(1)}" x2="${W-pad.r}" y2="${y(v).toFixed(1)}" stroke="rgba(255,255,255,.06)"/><text x="${pad.l-6}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" fill="#6f7f9c" font-size="9">${v}</text>`).join('');
+      const xl=riskTrend.map((d,i)=>`<text x="${x(i).toFixed(1)}" y="${H-8}" text-anchor="middle" fill="#6f7f9c" font-size="10">${d.month}</text>`).join('');
+      const dots=(k,c)=>riskTrend.map((d,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(d[k]).toFixed(1)}" r="3" fill="${c}"/><text x="${x(i).toFixed(1)}" y="${(y(d[k])-7).toFixed(1)}" text-anchor="middle" fill="${c}" font-size="9" font-weight="700">${d[k]}</text>`).join('');
+      document.getElementById('risk-chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Inherent versus residual risk trend over six months">
+        ${grid}
+        <path d="${area('inherent')}" fill="rgba(251,146,60,.12)"/>
+        <path d="${area('residual')}" fill="rgba(88,166,255,.14)"/>
+        <path d="${line('inherent')}" fill="none" stroke="var(--orange)" stroke-width="2"/>
+        <path d="${line('residual')}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+        ${dots('inherent','#fb923c')}${dots('residual','#58a6ff')}
+        ${xl}
+      </svg>`;
+      document.getElementById('risk-method').innerHTML=`<strong>Methodology.</strong> Each register entry is scored <em>likelihood × impact</em> (1–5 scale, 1–25 range) before and after controls. Module scores are averaged per monthly snapshot. Residual-risk reduction here is <strong>${reduction}%</strong> ((inherent ${rt.inherent} − residual ${rt.residual}) ÷ inherent), evidencing that mitigation activity is lowering exposure faster than inherent risk is falling on its own.`;
+    })();
+
+    // ── remediation ──
+    document.getElementById('rem-grid').innerHTML=remediation.map(r=>{const sc=r.status.toLowerCase().replace(' ','-');return `<div class="rem-card ${r.overdue?'overdue':''}">
+      <div class="rem-top"><span class="rem-id">${r.id}</span><span class="rem-status ${sc}">${esc(r.status)}</span></div>
+      <div class="rem-title">${esc(r.title)}</div>
+      <div class="rem-bar-wrap"><div class="rem-bar"><div class="rem-fill" style="width:${r.progress}%;background:${r.overdue?'var(--red)':r.progress>=50?'var(--green)':'var(--accent)'}"></div></div><span class="rem-pct">${r.progress}%</span></div>
+      <div class="rem-meta"><span>👤 ${esc(r.owner)}</span><span>📅 ${esc(r.due)}</span><span class="rem-sev ${r.sev.toLowerCase()}">${esc(r.sev)}</span></div>
+    </div>`;}).join('');
+
+    // ── code tabs ──
+    let ci=0;const ct=document.getElementById('code-tabs'),cp=document.getElementById('code-panel');
+    function renderCode(){ct.innerHTML=code.map((c,i)=>`<button class="tab ${i===ci?'active':''}" data-i="${i}">${esc(c.title)}</button>`).join('');const c=code[ci];cp.innerHTML=`<div class="panel-meta"><span class="panel-tag">${c.lang}</span><span class="panel-desc">${esc(c.desc)}</span></div><pre class="code">${codeHtml(c.code)}</pre>`;}
+    ct.addEventListener('click',e=>{const b=e.target.closest('[data-i]');if(b){ci=+b.dataset.i;renderCode();}});renderCode();
+
+    // ── data-flow diagram ──
+    (function(){
+      const W=780,H=300,bx=10,bw=168,bh=32,gap=(H-modules.length*bh)/(modules.length+1);
+      const short={iso27001:"ISO 27001 Control Program",risk:"Enterprise Risk Register",vendor:"Vendor / TPRM",audit:"Internal Audit Findings",ir:"Incident Response",privacy:"Data-Protection / Privacy"};
+      const aggX=250,aggY=118,aggW=150,aggH=64;
+      const jX=452,jY=126,jW=110,jH=48;
+      const bX=612,bY=112,bW=158,bH=76;
+      const cy=aggY+aggH/2;
+      let src="",arrows="";
+      modules.forEach((m,i)=>{const y=gap+i*(bh+gap),my=y+bh/2;
+        src+=`<rect x="${bx}" y="${y}" width="${bw}" height="${bh}" rx="7" fill="rgba(88,166,255,.08)" stroke="var(--panel-border)"/><text x="${bx+11}" y="${y+15}" fill="#a9b7cf" font-size="10.5" font-weight="600">${esc(short[m.id])}</text><text x="${bx+11}" y="${y+27}" fill="#6f7f9c" font-size="9" font-family="monospace">${m.id}_controls.csv</text>`;
+        arrows+=`<path d="M${bx+bw} ${my} C${bx+bw+30} ${my}, ${aggX-30} ${cy}, ${aggX} ${cy}" fill="none" stroke="rgba(120,160,220,.4)" stroke-width="1.4" marker-end="url(#ar)"/>`;
+      });
+      document.getElementById('diagram').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Data flow from six module sources through the aggregator to the executive dashboard and board report">
+        <defs><marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="var(--accent)"/></marker></defs>
+        ${src}${arrows}
+        <rect x="${aggX}" y="${aggY}" width="${aggW}" height="${aggH}" rx="10" fill="rgba(88,166,255,.12)" stroke="var(--accent)" stroke-width="1.5"/>
+        <text x="${aggX+aggW/2}" y="${aggY+26}" text-anchor="middle" fill="#eaf0fb" font-size="11.5" font-weight="700">aggregate_dashboard.py</text>
+        <text x="${aggX+aggW/2}" y="${aggY+44}" text-anchor="middle" fill="#7cc4ff" font-size="10" font-family="monospace">pandas rollup</text>
+        <path d="M${aggX+aggW} ${cy} L${jX} ${jY+jH/2}" fill="none" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ar)"/>
+        <rect x="${jX}" y="${jY}" width="${jW}" height="${jH}" rx="8" fill="rgba(74,222,128,.1)" stroke="rgba(74,222,128,.4)"/>
+        <text x="${jX+jW/2}" y="${jY+29}" text-anchor="middle" fill="#86efac" font-size="11" font-weight="700" font-family="monospace">dashboard.json</text>
+        <path d="M${jX+jW} ${jY+jH/2} L${bX} ${bY+bH/2}" fill="none" stroke="var(--accent)" stroke-width="1.6" marker-end="url(#ar)"/>
+        <rect x="${bX}" y="${bY}" width="${bW}" height="${bH}" rx="10" fill="rgba(255,255,255,.05)" stroke="var(--panel-border)"/>
+        <text x="${bX+bW/2}" y="${bY+30}" text-anchor="middle" fill="#eaf0fb" font-size="11.5" font-weight="700">Executive Dashboard</text>
+        <text x="${bX+bW/2}" y="${bY+50}" text-anchor="middle" fill="#a9b7cf" font-size="10.5">&amp; Board Report</text>
+      </svg>`;
+    })();
+
+    // ── CSV artifacts ──
+    function csvCard(c){
+      const head=`<tr>${c.head.map(h=>`<th>${esc(h)}</th>`).join('')}</tr>`;
+      const body=c.rows.map(r=>`<tr>${r.map(cell=>Array.isArray(cell)?`<td class="csv-${cell[1]==='ok'?'ok':cell[1]==='part'?'part':'miss'}">${esc(cell[0])}</td>`:`<td>${esc(cell)}</td>`).join('')}</tr>`).join('');
+      return `<div class="file-card"><div class="file-head"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><h5>${esc(c.name)}</h5><span class="file-name">headers + sample rows</span></div><div class="table-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div></div>`;
+    }
+    document.getElementById('files').innerHTML=csvCard(kpiCsv)+csvCard(ctrlCsv);
+
+    // ── outcomes ──
+    document.getElementById('outcomes').innerHTML=outcomes.map(([t,d])=>`<div class="out"><h4>${esc(t)}</h4><p>${esc(d)}</p></div>`).join('');
+
+    // ── foot ──
+    document.getElementById('foot').innerHTML=`This is an illustrative executive GRC dashboard provided as a reusable work-sample template; all organisations, controls, metrics, and evidence are <strong>fictional</strong> and included only to demonstrate methodology and deliverables. The underlying control sources are the <a href="https://www.nist.gov/cyberframework" target="_blank" rel="noopener noreferrer">NIST Cybersecurity Framework</a>, <a href="https://www.iso.org/standard/27001" target="_blank" rel="noopener noreferrer">ISO/IEC 27001</a>, and the <a href="https://www.aicpa.org/resources/landing/system-and-organization-controls-soc-suite-of-services" target="_blank" rel="noopener noreferrer">AICPA SOC 2 Trust Services Criteria</a>.`;
+  </script>
+</body>
+</html>

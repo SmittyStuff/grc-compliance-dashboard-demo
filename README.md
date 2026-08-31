@@ -25,7 +25,7 @@ the **AICPA SOC 2 Trust Services Criteria**.
 
 ## 🔗 Live demo
 
-**https://itnet-steven-smith.github.io/grc-compliance-dashboard-demo/**
+**https://steven-smith-itnet.github.io/grc-compliance-dashboard-demo/**
 
 ## About
 
